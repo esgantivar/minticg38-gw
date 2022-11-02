@@ -1,9 +1,9 @@
 import datetime
-
+import bson
 from flask import Flask, jsonify, request
 from settings import URL, PORT, URL_SECURITY, JWT_SECRET_KEY, URL_ACADEMIC
 import requests
-from flask_jwt_extended import JWTManager, create_access_token, verify_jwt_in_request
+from flask_jwt_extended import JWTManager, create_access_token, verify_jwt_in_request, get_jwt_identity
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
@@ -47,45 +47,96 @@ def login():
 
 @app.route("/students", methods=["GET"])
 def get_all_students():
-    if verify_jwt_in_request():
-        response = requests.get(
-            url=f"{URL_ACADEMIC}/students",
-            headers={
-                "Content-Type": "application/json"
-            }
-        )
-        if response.status_code == 200:
-            data = response.json()
-            return jsonify({
-                "students": data.get("students", [])
-            })
-        else:
-            return jsonify({
-                "message": "error"
-            }), 400
+    response = requests.get(
+        url=f"{URL_ACADEMIC}/students",
+        headers={
+            "Content-Type": "application/json"
+        }
+    )
+    if response.status_code == 200:
+        data = response.json()
+        return jsonify({
+            "students": data.get("students", [])
+        })
     else:
         return jsonify({
-            "message": "not auth"
-        }), 401
+            "message": "error"
+        }), 400
+
+
+@app.route("/students/<string:user_id>", methods=["GET"])
+def get_student_by_id(user_id):
+    response = requests.get(
+        url=f"{URL_ACADEMIC}/students/{user_id}",
+        headers={
+            "Content-Type": "application/json"
+        }
+    )
+    if response.status_code == 200:
+        data = response.json()
+        return jsonify(data)
+    else:
+        return jsonify({
+            "message": "error"
+        }), 400
 
 
 @app.route("/departments", methods=["GET"])
 def get_all_departments():
-    # middleware -> la solución  para proteger las rutas sin repetir codigo...!
-    if verify_jwt_in_request():
-        response = requests.get(
-            url=f"{URL_ACADEMIC}/departments",
-            headers={
-                "Content-Type": "application/json"
-            }
-        )
+    response = requests.get(
+        url=f"{URL_ACADEMIC}/departments",
+        headers={
+            "Content-Type": "application/json"
+        }
+    )
 
-        if response.status_code == 200:
-            return jsonify(response.json())
-        else:
-            return jsonify({
-                "messags": "se presento un error"
-            })
+    if response.status_code == 200:
+        return jsonify(response.json())
+    else:
+        return jsonify({
+            "messags": "se presento un error"
+        })
+
+
+EXCLUDED_URLS = [
+    "/",
+    "/login"
+]
+
+
+def clean_path(path):
+    parts = path.split("/")
+    for idx, part in enumerate(parts):
+        if bson.ObjectId.is_valid(part):
+            parts[idx] = '?'
+    return "/".join(parts)
+
+
+def validate_permission(role_id, url, method) -> bool:
+    """
+    :return: si tiene permiso de acceso al recurso
+    """
+    response = requests.post(
+        f"{URL_SECURITY}/role-permission/validate/role/{role_id}",
+        json={
+            "url": url,
+            "method": method
+        }
+    )
+    return response.status_code == 200
+
+
+@app.before_request
+def middleware():
+    if request.path not in EXCLUDED_URLS:
+        if verify_jwt_in_request():
+            user = get_jwt_identity()
+            role = user.get("role")
+            role_id = role.get("_id")
+            if not validate_permission(role_id, clean_path(request.path), request.method):
+                return jsonify({
+                    "msg": "Recurso no autorizado"
+                }), 403
 
 
 if __name__ == "__main__":
