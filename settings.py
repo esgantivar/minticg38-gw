@@ -9,3 +9,8 @@ URL_ACADEMIC = os.environ.get("URL_ACADEMIC")
 URL_SECURITY = os.environ.get("URL_SECURITY")
 JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
 
+EXCLUDED_URLS = [
+    "/",
+    "/login"
+]
+
