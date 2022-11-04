@@ -6,7 +6,7 @@ from flask_jwt_extended import JWTManager, create_access_token, verify_jwt_in_re
 
 from settings import URL, PORT, URL_SECURITY, JWT_SECRET_KEY, EXCLUDED_URLS
 from utils import clean_path
-from views.academic import department_bp, students_bp, subjects_bp, registrations_bp
+from views.academic import department_bp, students_bp, subjects_bp, registrations_bp, myself_bp
 
 app = Flask(__name__)
 app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
@@ -80,7 +80,7 @@ app.register_blueprint(department_bp, url_prefix="/departments")
 app.register_blueprint(students_bp, url_prefix="/students")
 app.register_blueprint(subjects_bp, url_prefix="/subjects")
 app.register_blueprint(registrations_bp, url_prefix="/registrations")
-
+app.register_blueprint(myself_bp, url_prefix="/myself")
 
 if __name__ == "__main__":
     app.run(
