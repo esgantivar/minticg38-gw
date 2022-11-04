@@ -12,7 +12,9 @@ HEADERS = {
 myself_bp = Blueprint("myself_blueprint", __name__)
 
 
-def _get_student(auth_id):
+def _get_student():
+    user = get_jwt_identity()
+    auth_id = user.get("_id")
     response = requests.request(
         method="GET",
         url=f"{URL_ACADEMIC}/students/auth/{auth_id}",
@@ -24,10 +26,33 @@ def _get_student(auth_id):
         return None
 
 
+def _get_registration(student, registration_id):
+    if not student:
+        return {
+            "registration": None,
+            "errors": ["Student Does not exist"]
+        }
+    response = requests.request(
+        method="GET",
+        url=f"{URL_ACADEMIC}/registrations/student/{student['_id']}/registration/{registration_id}",
+        headers={
+            "Content-Type": "application/json"
+        }
+    )
+    if response.status_code == 200:
+        return {
+            "registration": response.json()
+        }
+    else:
+        return {
+            "registration": None,
+            "errors": ["Registration Does not exist"]
+        }
+
+
 @myself_bp.route("", methods=["GET"])
 def get_myself():
-    user = get_jwt_identity()
-    student = _get_student(user['_id'])
+    student = _get_student()
     if student:
         return jsonify(student)
     else:
@@ -38,8 +63,7 @@ def get_myself():
 
 @myself_bp.route("", methods=["PUT"])
 def update_myself():
-    user = get_jwt_identity()
-    student = _get_student(user['_id'])
+    student = _get_student()
     if student:
         response = requests.request(
             method="PUT",
@@ -60,8 +84,7 @@ def update_myself():
 
 @myself_bp.route("registrations", methods=["POST"])
 def create_registration():
-    user = get_jwt_identity()
-    student = _get_student(user["_id"])
+    student = _get_student()
     subject = request.get_json()["subject"]
 
     if not student:
@@ -100,20 +123,14 @@ def create_registration():
 
 @myself_bp.route("registrations", methods=["GET"])
 def get_registrations():
-    pass
-
-
-@myself_bp.route("registrations/<string:registration_id>", methods=["GET"])
-def get_registration_by_id(registration_id):
-    user = get_jwt_identity()
-    student = _get_student(user["_id"])
+    student = _get_student()
     if not student:
         return jsonify({
             "msg": ""
         }), 400
     response = requests.request(
         method="GET",
-        url=f"{URL_ACADEMIC}/registrations/student/{student['_id']}/registration/{registration_id}",
+        url=f"{URL_ACADEMIC}/registrations/student/{student['_id']}/registration",
         headers={
             "Content-Type": "application/json"
         }
@@ -126,11 +143,63 @@ def get_registration_by_id(registration_id):
         }), 400
 
 
+@myself_bp.route("registrations/<string:registration_id>", methods=["GET"])
+def get_registration_by_id(registration_id):
+    response = _get_registration(registration_id)
+    if response.get("registration"):
+        return jsonify(response)
+    else:
+        return jsonify({
+            "msg": ""
+        }), 400
+
+
 @myself_bp.route("registrations/<string:registration_id>", methods=["PUT"])
 def update_registration(registration_id):
-    pass
+    body = request.get_json()
+    student = _get_student()
+    response = _get_registration(student, registration_id)
+    subject = response.get("registration")
+    if subject:
+        res = requests.request(
+            method="PUT",
+            url=f"{URL_ACADEMIC}/registrations/{registration_id}",
+            headers={
+                "Content-Type": "application/json"
+            },
+            json={
+                "grade": subject["grade"],
+                "semester": subject["semester"],
+                "student": {
+                    "id": student["_id"]
+                },
+                "subject": {
+                    "id": body.get("subject")
+                },
+                "year": subject["year"]
+            }
+        )
+        if res.status_code == 200:
+            return jsonify(res.json())
+    return jsonify({
+        "msg": ""
+    }), 400
 
 
 @myself_bp.route("registrations/<string:registration_id>", methods=["DELETE"])
 def delete_registration(registration_id):
-    pass
+    student = _get_student()
+    response = _get_registration(student, registration_id)
+    if response.get("registration"):
+        res = requests.request(
+            method="DELETE",
+            url=f"{URL_ACADEMIC}/registrations/{registration_id}",
+            headers={
+                "Content-Type": "application/json"
+            }
+        )
+        if res.status_code == 200:
+            return jsonify(res.json())
+    return jsonify({
+        "msg": ""
+    }), 400

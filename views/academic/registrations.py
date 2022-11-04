@@ -1,7 +1,5 @@
 import requests
-
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import get_jwt_identity
 
 from settings import URL_ACADEMIC
 
@@ -44,14 +42,51 @@ def get_by_id(id_registration):
 
 @registrations_bp.route("", methods=["POST"])
 def create():
-    ...
+    body = request.get_json()
+    response = requests.request(
+        method="POST",
+        url=f"{URL_ACADEMIC}/registrations",
+        json=body,
+        headers={
+            "Content-Type": "application/json"
+        }
+    )
+    if response.status_code == 201:
+        return jsonify(response.json()), 201
+    else:
+        return jsonify({
+            "msg": "error"
+        }), 400
 
 
 @registrations_bp.route("<string:id_registration>", methods=["PUT"])
-def update():
-    ...
+def update(id_registration):
+    body = request.get_json()
+    response = requests.request(
+        method="PUT",
+        url=f"{URL_ACADEMIC}/registrations/{id_registration}",
+        json=body,
+        headers={
+            "Content-Type": "application/json"
+        }
+    )
+    if response.status_code == 200:
+        return jsonify(response.json())
+    else:
+        return jsonify({
+            "msg": "error"
+        }), 400
 
 
 @registrations_bp.route("<string:id_registration>", methods=["DELETE"])
-def delete():
-    ...
+def delete(id_registration):
+    response = requests.request(
+        method="DELETE",
+        url=f"{URL_ACADEMIC}/registrations/{id_registration}",
+    )
+    if response.status_code == 200:
+        return jsonify(response.json())
+    else:
+        return jsonify({
+            "msg": "error"
+        }), 400
