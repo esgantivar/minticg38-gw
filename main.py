@@ -2,6 +2,7 @@ import datetime
 
 import requests
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, verify_jwt_in_request, get_jwt_identity
 
 from settings import URL, PORT, URL_SECURITY, JWT_SECRET_KEY, EXCLUDED_URLS
@@ -9,6 +10,9 @@ from utils import clean_path
 from views.academic import department_bp, students_bp, subjects_bp, registrations_bp, myself_bp
 
 app = Flask(__name__)
+
+CORS(app)
+
 app.config["JWT_SECRET_KEY"] = JWT_SECRET_KEY
 jwt = JWTManager(app)
 
